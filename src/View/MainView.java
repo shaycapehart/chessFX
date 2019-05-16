@@ -12,6 +12,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Point3D;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.*;
 import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
@@ -25,6 +26,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Material;
+import javafx.scene.paint.Paint;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
 import javafx.scene.shape.MeshView;
@@ -35,6 +37,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -83,6 +86,7 @@ public class MainView extends Application {
     private double mouseOldX;
     private double mouseOldY;
     private GameMenu gameMenu;
+    private Image star, lightS, darkS;
 
     Stage window;
 
@@ -100,6 +104,11 @@ public class MainView extends Application {
         darkStar = new Image(getClass().getResource("/images/darkstar.jpg").toString());
         lightStarBack =  new Background(new BackgroundImage(new Image(getClass().getResource("/images/lightstar.jpg").toString()),null,null,null,null));
         darkStarBack =  new Background(new BackgroundImage(new Image(getClass().getResource("/images/darkstar.jpg").toString()),null,null,null,null));
+
+        star = new Image(getClass().getResource("/images/ray.png").toString());
+        lightS = new Image(getClass().getResource("/images/LightSquare.jpg").toString());
+        darkS = new Image(getClass().getResource("/images/DarkSquare.jpg").toString());
+
 
         buildCamera();
         buildAxes();
@@ -140,16 +149,17 @@ public class MainView extends Application {
                         BackgroundPosition.DEFAULT,
                         new BackgroundSize(0, 0, false, false, false, true))));
         gameMenu = new GameMenu();
-        gameMenu.setVisible(false);
 
         centerGroup.getChildren().addAll(subScene,gameMenu);
         pane.setCenter(centerGroup);
+        subScene.setVisible(false);
 
         Scene scene = new Scene(pane,SCENE_WIDTH, SCENE_HEIGHT);
 
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
                 if (!gameMenu.isVisible()) {
+                    System.out.println("Pressed escape and gameMenu is not visible");
                     FadeTransition ft = new FadeTransition(Duration.seconds(0.5), gameMenu);
                     ft.setFromValue(0);
                     ft.setToValue(1);
@@ -157,6 +167,7 @@ public class MainView extends Application {
                     ft.play();
                 }
                 else {
+                    System.out.println("Pressed escape and gameMenu is visible");
                     FadeTransition ft = new FadeTransition(Duration.seconds(0.5), gameMenu);
                     ft.setFromValue(1);
                     ft.setToValue(0);
@@ -179,7 +190,7 @@ public class MainView extends Application {
             mouseOldY = mousePosY;
         });
 
-        newGame();
+        gameMenu.setVisible(true);
 
 //        controller = new Controller();
 //        drawBoard(controller.clickHandler(new model.Pos(4,4)));
@@ -192,6 +203,7 @@ public class MainView extends Application {
 
         controller = new Controller();
         drawBoard(controller.clickHandler(new model.Pos(4,4)));
+        subScene.setVisible(true);
     }
 
     private HBox createAxisPills() {
@@ -206,7 +218,7 @@ public class MainView extends Application {
         tb1.setToggleGroup(group);
         tb2.setToggleGroup(group);
         // select the first button to start with
-        group.selectToggle(tb1);
+        group.selectToggle(tb2);
 
         final ChangeListener<Toggle> listener =
                 (ObservableValue<? extends Toggle> observable,
@@ -255,8 +267,9 @@ public class MainView extends Application {
                         group.selectToggle(old);
                     }else{
                         String id = ((ToggleButton)now).getText();
-                        centerGroup.getChildren().remove(id.equals("3-D")?chessBoardPane:subScene);
+                        centerGroup.getChildren().clear();
                         centerGroup.getChildren().add(id.equals("3-D")?subScene:chessBoardPane);
+                        centerGroup.getChildren().add(gameMenu);
                     }
                 };
         group.selectedToggleProperty().addListener(listener);
@@ -275,22 +288,16 @@ public class MainView extends Application {
         public GameMenu() {
             VBox menu0 = new VBox(10);
             VBox menu1 = new VBox(10);
+            VBox menu2 = new VBox(10);
+            MenuButton btnNew,btnResume,btnOptions,btnExit,btnBack;
             menu0.setTranslateX(100);
             menu0.setTranslateY(200);
             menu1.setTranslateX(100);
             menu1.setTranslateY(200);
+            menu2.setTranslateX(100);
+            menu2.setTranslateY(200);
 
-            MenuButton btnNew = new MenuButton("NEW GAME");
-            btnNew.setOnMouseClicked(event -> {
-                FadeTransition ft = new FadeTransition(Duration.seconds(0.5), this);
-                ft.setFromValue(1);
-                ft.setToValue(0);
-                ft.setOnFinished(evt -> setVisible(false));
-                ft.play();
-                newGame();
-            });
-
-            MenuButton btnResume = new MenuButton("RESUME");
+            btnResume = new MenuButton("RESUME");
             btnResume.setOnMouseClicked(event -> {
                 FadeTransition ft = new FadeTransition(Duration.seconds(0.5), this);
                 ft.setFromValue(1);
@@ -299,7 +306,18 @@ public class MainView extends Application {
                 ft.play();
             });
 
-            MenuButton btnOptions = new MenuButton("OPTIONS");
+            btnNew = new MenuButton("NEW GAME");
+            btnNew.setOnMouseClicked(event -> {
+                FadeTransition ft = new FadeTransition(Duration.seconds(0.5), this);
+                ft.setFromValue(1);
+                ft.setToValue(0);
+                ft.setOnFinished(evt -> setVisible(false));
+                ft.play();
+                newGame();
+                btnResume.setVisible(true);
+            });
+
+            btnOptions = new MenuButton("OPTIONS");
             btnOptions.setOnMouseClicked(event -> {
                 getChildren().add(menu1);
                 FadeTransition ft = new FadeTransition(Duration.seconds(0.5), menu0);
@@ -313,12 +331,12 @@ public class MainView extends Application {
                 getChildren().remove(menu0);
             });
 
-            MenuButton btnExit = new MenuButton("EXIT");
+            btnExit = new MenuButton("EXIT");
             btnExit.setOnMouseClicked(event -> {
                 System.exit(0);
             });
 
-            MenuButton btnBack = new MenuButton("BACK");
+            btnBack = new MenuButton("BACK");
             btnBack.setOnMouseClicked(event -> {
                 getChildren().add(menu0);
                 FadeTransition ft = new FadeTransition(Duration.seconds(0.5), menu1);
@@ -334,7 +352,9 @@ public class MainView extends Application {
 
             MenuButton btnSound = new MenuButton("SOUND");
             MenuButton btnVideo = new MenuButton("VIDEO");
-            menu0.getChildren().addAll(btnNew, btnResume, btnOptions, btnExit);
+
+
+            menu0.getChildren().addAll(btnResume, btnNew, btnOptions, btnExit);
             menu1.getChildren().addAll(btnBack, btnSound, btnVideo);
 
             Rectangle bg = new Rectangle(500, 500);
@@ -342,6 +362,7 @@ public class MainView extends Application {
             bg.setOpacity(0.4);
 
             getChildren().add(menu0);
+            btnResume.setVisible(false);
         }
     }
 
@@ -387,8 +408,7 @@ public class MainView extends Application {
 
                     squareBoxes[i][j].setColor(whiteSquare);
 
-                    squares[i][j].setColor(whiteSquare);
-                    squares[i][j].resetText("");
+                    squares[i][j].getChildren().get(1).setVisible(false);
 
                 if(j != 7){
                     whiteSquare = (!whiteSquare);
@@ -412,14 +432,8 @@ public class MainView extends Application {
                     squareBoxes[pos.getRow()][pos.getCol()].setMaterial(newDarkMaterial);
                 }
 
-                if(squares[pos.getRow()][pos.getCol()].getColor()){
-                    squares[pos.getRow()][pos.getCol()].getChildren().clear();
-//                    squares[pos.getRow()][pos.getCol()].getChildren().add((new ImageView(darkStar).autosize()));//write 2 functions
 
-                }else {
-                    squares[pos.getRow()][pos.getCol()].getChildren().clear();
-//                    squares[pos.getRow()][pos.getCol()].getChildren().add(new ImageView(lightStar).autosize());
-                }
+                squares[pos.getRow()][pos.getCol()].getChildren().get(1).setVisible(true);
 
         }
         for(ViewPiece viewPiece: viewState.getPieces()){
@@ -445,7 +459,6 @@ public class MainView extends Application {
                     n.setTranslateY(-n.getBoundsInLocal().getHeight()/2.0);
                     n.setTranslateX(n.getTranslateX()+(-3.5 + pos.getRow())*SQUARE_SIDE);
                     n.setTranslateY(n.getTranslateY()+(-3.5+ pos.getCol())*SQUARE_SIDE);
-                    System.out.println("Translate  X: "+n.getTranslateX()+" Y: "+n.getTranslateY()+" Z: "+n.getTranslateZ());
                     n.setId(n.getId() + "_set");
                     break;
                 }
@@ -495,7 +508,7 @@ public class MainView extends Application {
         yAxis.setMaterial(new PhongMaterial(Color.DARKGREEN));
         zAxis.setMaterial(new PhongMaterial(Color.DARKBLUE));
         axisGroup.getChildren().addAll(xAxis, yAxis, zAxis);
-        axisGroup.setVisible(true);
+        axisGroup.setVisible(false);
         world.getChildren().addAll(axisGroup);
     }
 
@@ -579,26 +592,6 @@ public class MainView extends Application {
         }
     }
 
-    private void handleKeyboard(Scene scene, final Node root) {
-
-        scene.setOnKeyPressed(new EventHandler<KeyEvent>() {
-            @Override
-            public void handle(KeyEvent event) {
-                switch (event.getCode()) {
-                    case Z:
-                        cameraXform2.t.setX(0.0);
-                        cameraXform2.t.setY(0.0);
-                        cameraXform.ry.setAngle(CAMERA_INITIAL_Y_ANGLE);
-                        cameraXform.rx.setAngle(CAMERA_INITIAL_X_ANGLE);
-                        break;
-                    case X:
-                        axisGroup.setVisible(!axisGroup.isVisible());
-                        break;
-                }
-            }
-        });
-    }
-
     private class SquareBox extends Box {
 
         private int row, col;
@@ -618,9 +611,9 @@ public class MainView extends Application {
             this.col = col;
         }
 
-        public boolean getColor(){ return isWhite; }
+        boolean getColor(){ return isWhite; }
 
-        public void setColor(boolean bool){
+        void setColor(boolean bool){
             isWhite = bool;
             if(bool){
                 squareMaterial.setDiffuseMap(lightSquare);
@@ -636,37 +629,44 @@ public class MainView extends Application {
     }
 
     private class Square extends StackPane {
-        private boolean isWhite;
         private int row, col;
-        private Text text = new Text();
+        private ImageView localPiece = new ImageView();
+        private ImageView myColor = new ImageView();
+
         //		private Piece piece;
         private Square(){
             setPrefSize(60, 60);
             setStyle("-fx-border-color: black");
+            ImageView starView = new ImageView(star);
+            starView.setFitHeight(50);
+            starView.setFitWidth(50);
+            myColor.setFitHeight(60);
+            myColor.setFitWidth(60);
+            localPiece.setFitHeight(60);
+            localPiece.setFitWidth(60);
             setOnMouseClicked(e -> handleMouseClick());
+            getChildren().addAll(myColor, starView,localPiece);
+            starView.setVisible(false);
         }
 
         void setRowCol(int row, int col){
             this.row = row;
             this.col = col;
         }
-        public int getRow(){
-            return row;
-        }
-        public int getCol(){
-            return col;
-        }
+//        public int getRow(){
+//            return row;
+//        }
+//        public int getCol(){
+//            return col;
+//        }
+//
+//        public boolean getColor(){ return isWhite; }
 
-        public boolean getColor(){ return isWhite; }
-
-        public void setColor(boolean bool){
-            isWhite = bool;
-            if(isWhite){
-                setBackground(new Background(new BackgroundImage(lightSquare,null,null,null,null)));
-//                setStyle("-fx-background-color: burlywood");
+        void setColor(boolean bool){
+            if(bool){
+                myColor.setImage(lightS);
             }else{
-                setBackground(new Background(new BackgroundImage(darkSquare,null,null,null,null)));
-//                setStyle("-fx-background-color: darkgoldenrod");
+                myColor.setImage(darkS);
             }
         }
         private void handleMouseClick(){
@@ -675,22 +675,25 @@ public class MainView extends Application {
             //draw chessBoardPane
         }
         void drawPiece(String id){
-            text = new Text(id);
-            text.setFont(Font.font(40));
-            text.setTextAlignment(TextAlignment.CENTER);
+            String fileName = "";
             if("KQNBPR".contains(id)) {
-                text.setFill(Color.WHITE);
+                fileName = "res/images/w" + id.toLowerCase() + ".png";
             }else{
-                text.setFill(Color.BLACK);
+                fileName = "res/images/" + id.toLowerCase() + ".png";
             }
-
-            this.getChildren().add(text);
-
+            try {
+                FileInputStream input = new FileInputStream(fileName);
+                Image img = new Image(input);
+                localPiece.setImage(img);
+                localPiece.setVisible(true);
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
             this.setAlignment(javafx.geometry.Pos.CENTER);
         }
-        void resetText(String id){
-            text.setText(id);
-        }
+//        void resetText(String id){
+//            localPiece.setVisible(false);
+//        }
     }
 
     private void setMaterial(Group group, Material material) {
