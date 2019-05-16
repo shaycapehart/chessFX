@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/newFxBuilderApp.iml" filepath="$PROJECT_DIR$/newFxBuilderApp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ChessFX.iml" filepath="$PROJECT_DIR$/ChessFX.iml" />
     </modules>
   </component>
 </project>

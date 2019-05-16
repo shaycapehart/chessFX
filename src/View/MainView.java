@@ -5,6 +5,8 @@ import controller.ViewPiece;
 import controller.ViewState;
 import javafx.animation.*;
 import javafx.application.Application;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
@@ -16,6 +18,7 @@ import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.effect.Glow;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -43,12 +46,12 @@ public class MainView extends Application {
     private final GridPane chessBoardPane = new GridPane();
     private Text whoseTurnText = new Text();
     private Text totalRoundText = new Text();
-
+    private Group centerGroup = new Group();
     private Square[][] squares = new Square[8][8]; //view
     private SquareBox[][] squareBoxes = new SquareBox[8][8];
     private Controller controller;
 
-                //  root
+    private SubScene subScene;
     private final Xform world = new Xform();           //   |___world
     private final Xform axisGroup = new Xform();       //        |___axisGroup
     private final Xform boardGroup = new Xform();      //        |___boardGroup
@@ -108,7 +111,7 @@ public class MainView extends Application {
         root3D.setAutoSizeChildren(true);
         root3D.prefHeight(SCENE_HEIGHT*0.5);
         root3D.prefWidth(SCENE_WIDTH*0.5);
-        SubScene subScene = new SubScene(root3D, SCENE_WIDTH*0.8, SCENE_HEIGHT*0.8, true,SceneAntialiasing.BALANCED);
+        subScene = new SubScene(root3D, SCENE_WIDTH*0.8, SCENE_HEIGHT*0.8, true,SceneAntialiasing.BALANCED);
         subScene.setCamera(camera);
 
         // testing menu
@@ -117,49 +120,19 @@ public class MainView extends Application {
         Image img = new Image(is);
         is.close();
 
-        ToggleGroup toggle2d3d = new ToggleGroup();
+        HBox whoTurn = new HBox(50);
+        whoTurn.getChildren().add(whoseTurnText);
+        HBox totalRound = new HBox(50);
+        totalRound.getChildren().add(totalRoundText);
+        HBox topPane = new HBox();
+        topPane.getChildren().addAll(whoTurn,totalRound);
 
-        ToggleButton tb2d = new ToggleButton("2-D");
-        tb2d.setToggleGroup(toggle2d3d);
-        tb2d.setUserData(Color.LIGHTGREEN);
-        tb2d.setStyle("-fx-base: lightgreen;");
+        Region region1 = new Region();
+        HBox.setHgrow(region1, Priority.ALWAYS);
 
-        ToggleButton tb3d = new ToggleButton("3-D");
-        tb3d.setToggleGroup(toggle2d3d);
-        tb3d.setUserData(Color.LIGHTBLUE);
-        tb3d.setStyle("-fx-base: lightblue;");
-        tb3d.setSelected(true);
-
-        HBox hbox2d3d = new HBox();
-        hbox2d3d.getChildren().add(tb2d);
-        hbox2d3d.getChildren().add(tb3d);
-
-        toggle2d3d.selectedToggleProperty().addListener((observable, oldValue, newValue) ->{
-            if(newValue != null){
-                is3D=!is3D;
-                subScene.setMouseTransparent(!subScene.isMouseTransparent());
-                subScene.setVisible(!subScene.isVisible());
-                chessBoardPane.setMouseTransparent(!chessBoardPane.isMouseTransparent());
-                chessBoardPane.setVisible(!chessBoardPane.isVisible());
-            }
-        });
-
-        RadioButton axisOn = new RadioButton("Axis on");
-        RadioButton axisOff = new RadioButton("Axis off");
-        axisOn.setSelected(true);
-        ToggleGroup axisToggleGrp = new ToggleGroup();
-        axisOn.setToggleGroup(axisToggleGrp);
-        axisOff.setToggleGroup(axisToggleGrp);
-        axisToggleGrp.selectedToggleProperty().addListener((observable, oldValue, newValue) ->{
-            if(newValue != null){
-                axisGroup.setVisible(!axisGroup.isVisible());
-            }
-        });
-        HBox infoView = new HBox(50);
-        infoView.getChildren().addAll(whoseTurnText,totalRoundText);
-        HBox controlsView = new HBox(50);
-        controlsView.getChildren().addAll(infoView,hbox2d3d,axisOn,axisOff);
-        pane.setBottom(controlsView);
+        HBox bottomPane = new HBox();
+        bottomPane.getChildren().addAll(create3DPills(), region1, createAxisPills());
+        pane.setBottom(bottomPane);
 
         pane.setBackground(new Background(new BackgroundImage(img,
                         BackgroundRepeat.NO_REPEAT,
@@ -169,12 +142,8 @@ public class MainView extends Application {
         gameMenu = new GameMenu();
         gameMenu.setVisible(false);
 
-        Group centerGroup = new Group();
-        centerGroup.getChildren().addAll(subScene,chessBoardPane,gameMenu);
+        centerGroup.getChildren().addAll(subScene,gameMenu);
         pane.setCenter(centerGroup);
-        chessBoardPane.setMouseTransparent(true);
-        chessBoardPane.setVisible(false);
-        pane.setPadding(new Insets(10,10,10,10));
 
         Scene scene = new Scene(pane,SCENE_WIDTH, SCENE_HEIGHT);
 
@@ -210,11 +179,96 @@ public class MainView extends Application {
             mouseOldY = mousePosY;
         });
 
-        controller = new Controller();
-        drawBoard(controller.clickHandler(new model.Pos(4,4)));
+        newGame();
+
+//        controller = new Controller();
+//        drawBoard(controller.clickHandler(new model.Pos(4,4)));
 
         window.setScene(scene);
         window.show();
+    }
+
+    private void newGame(){
+
+        controller = new Controller();
+        drawBoard(controller.clickHandler(new model.Pos(4,4)));
+    }
+
+    private HBox createAxisPills() {
+        ToggleButton tb1 = new ToggleButton("AXIS ON");
+        tb1.setPrefSize(76, 30);
+        tb1.getStyleClass().add("left-pill");
+        ToggleButton tb2 = new ToggleButton("AXIS OFF");
+        tb2.setPrefSize(76, 30);
+        tb2.getStyleClass().add("right-pill");
+
+        final ToggleGroup group = new ToggleGroup();
+        tb1.setToggleGroup(group);
+        tb2.setToggleGroup(group);
+        // select the first button to start with
+        group.selectToggle(tb1);
+
+        final ChangeListener<Toggle> listener =
+                (ObservableValue<? extends Toggle> observable,
+                 Toggle old, Toggle now) -> {
+                    if (now == null) {
+                        group.selectToggle(old);
+                    }else{
+                        String id = ((ToggleButton)now).getText();
+                        if(id.equals("AXIS ON")){
+                            axisGroup.setVisible(true);
+                        }else{
+                            axisGroup.setVisible(false);
+                        }
+                    }
+                };
+        group.selectedToggleProperty().addListener(listener);
+
+        final String pillButtonCss =
+                getClass().getResource("/css/PillButton.css").toExternalForm();
+        final HBox hBox = new HBox();
+        hBox.setAlignment(Pos.CENTER);
+        hBox.getChildren().addAll(tb1, tb2);
+        hBox.getStylesheets().add(pillButtonCss);
+
+        return hBox;
+    }
+
+    private HBox create3DPills() {
+        ToggleButton tb1 = new ToggleButton("2-D");
+        tb1.setPrefSize(76, 30);
+        tb1.getStyleClass().add("left-pill");
+        ToggleButton tb2 = new ToggleButton("3-D");
+        tb2.setPrefSize(76, 30);
+        tb2.getStyleClass().add("right-pill");
+
+        final ToggleGroup group = new ToggleGroup();
+        tb1.setToggleGroup(group);
+        tb2.setToggleGroup(group);
+        // select the first button to start with
+        group.selectToggle(tb2);
+
+        final ChangeListener<Toggle> listener =
+                (ObservableValue<? extends Toggle> observable,
+                 Toggle old, Toggle now) -> {
+                    if (now == null) {
+                        group.selectToggle(old);
+                    }else{
+                        String id = ((ToggleButton)now).getText();
+                        centerGroup.getChildren().remove(id.equals("3-D")?chessBoardPane:subScene);
+                        centerGroup.getChildren().add(id.equals("3-D")?subScene:chessBoardPane);
+                    }
+                };
+        group.selectedToggleProperty().addListener(listener);
+
+        final String pillButtonCss =
+                getClass().getResource("/css/PillButton.css").toExternalForm();
+        final HBox hBox = new HBox();
+        hBox.setAlignment(Pos.CENTER);
+        hBox.getChildren().addAll(tb1, tb2);
+        hBox.getStylesheets().add(pillButtonCss);
+
+        return hBox;
     }
 
     private class GameMenu extends Group {
@@ -233,6 +287,7 @@ public class MainView extends Application {
                 ft.setToValue(0);
                 ft.setOnFinished(evt -> setVisible(false));
                 ft.play();
+                newGame();
             });
 
             MenuButton btnResume = new MenuButton("RESUME");
@@ -329,12 +384,12 @@ public class MainView extends Application {
         boolean whiteSquare = true;
         for(int i = 0; i < 8; i++){
             for(int j = 0; j< 8; j++){
-                if (is3D){
+
                     squareBoxes[i][j].setColor(whiteSquare);
-                } else {
+
                     squares[i][j].setColor(whiteSquare);
                     squares[i][j].resetText("");
-                }
+
                 if(j != 7){
                     whiteSquare = (!whiteSquare);
                 }
@@ -350,26 +405,27 @@ public class MainView extends Application {
         final PhongMaterial newDarkMaterial = new PhongMaterial();
         newDarkMaterial.setDiffuseMap(darkStar);
         for (model.Pos pos: viewState.getPossibleMoves()) {
-            if (is3D){
+
                 if(squareBoxes[pos.getRow()][pos.getCol()].getColor()){
                     squareBoxes[pos.getRow()][pos.getCol()].setMaterial(newLightMaterial);;
                 }else {
                     squareBoxes[pos.getRow()][pos.getCol()].setMaterial(newDarkMaterial);
                 }
-            } else {
+
                 if(squares[pos.getRow()][pos.getCol()].getColor()){
-                    squares[pos.getRow()][pos.getCol()].setBackground(lightStarBack);
+                    squares[pos.getRow()][pos.getCol()].getChildren().clear();
+//                    squares[pos.getRow()][pos.getCol()].getChildren().add((new ImageView(darkStar).autosize()));//write 2 functions
+
                 }else {
-                    squares[pos.getRow()][pos.getCol()].setBackground(darkStarBack);
+                    squares[pos.getRow()][pos.getCol()].getChildren().clear();
+//                    squares[pos.getRow()][pos.getCol()].getChildren().add(new ImageView(lightStar).autosize());
                 }
-            }
+
         }
         for(ViewPiece viewPiece: viewState.getPieces()){
-            if (is3D){
+
                 movePiece(viewPiece.getId(),viewPiece.getPos());
-            } else {
                 squares[viewPiece.getPos().getRow()][viewPiece.getPos().getCol()].drawPiece(viewPiece.getId());
-            }
         }
         clearRemaining();
         if ("WB".contains(viewState.getWhoseTurn())) {
