@@ -7,12 +7,9 @@ import javafx.animation.*;
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Insets;
 import javafx.geometry.Point3D;
 import javafx.geometry.Pos;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.*;
 import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
@@ -21,21 +18,17 @@ import javafx.scene.effect.Glow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Material;
-import javafx.scene.paint.Paint;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.Box;
-import javafx.scene.shape.MeshView;
-import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import model.Xform;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -46,20 +39,19 @@ import java.nio.file.Paths;
 import static java.lang.Character.isUpperCase;
 
 public class MainView extends Application {
-    private final GridPane chessBoardPane = new GridPane();
     private Text whoseTurnText = new Text();
     private Text totalRoundText = new Text();
-    private Group centerGroup = new Group();
-    private Square[][] squares = new Square[8][8]; //view
+    private Square[][] squares = new Square[8][8];
     private SquareBox[][] squareBoxes = new SquareBox[8][8];
+    private Integer[][] helper = new Integer[8][8];
     private Controller controller;
-
+    private final GridPane chessBoardPane = new GridPane();
     private SubScene subScene;
-    private final Xform world = new Xform();           //   |___world
-    private final Xform axisGroup = new Xform();       //        |___axisGroup
-    private final Xform boardGroup = new Xform();      //        |___boardGroup
-    private Group pieceGroup = new Group();            //        |___pieceGroup
-
+    private final Xform world = new Xform();
+    private final Xform axisGroup = new Xform();
+    private final Xform boardGroup = new Xform();
+    private Group pieceGroup = new Group();
+    private Group centerGroup = new Group();
     private final PerspectiveCamera camera = new PerspectiveCamera(true);
     private final Xform cameraXform = new Xform();
     private final Xform cameraXform2 = new Xform();
@@ -67,18 +59,14 @@ public class MainView extends Application {
 
     private static final double SCENE_WIDTH = 800;
     private static final double SCENE_HEIGHT = 600;
-    private static final double CAMERA_INITIAL_DISTANCE = -450;
+    private static final double CAMERA_INITIAL_DISTANCE = -500;
     private static final double CAMERA_INITIAL_X_ANGLE = 45.0;
     private static final double CAMERA_INITIAL_Y_ANGLE = 0.0;
     private static final double CAMERA_NEAR_CLIP = 0.1;
     private static final double CAMERA_FAR_CLIP = 10000.0;
     private static final double AXIS_LENGTH = 250.0;
     private static final double SQUARE_SIDE = 30.0;
-    private Image lightStar, darkStar;
-    private Image lightSquare, darkSquare;
     private Image lightPiece, darkPiece;
-    private Background lightStarBack, darkStarBack;
-    private static boolean is3D = true;
 
     // Used for UI control with the mouse
     private double mousePosX;
@@ -88,27 +76,16 @@ public class MainView extends Application {
     private GameMenu gameMenu;
     private Image star, lightS, darkS;
 
-    Stage window;
-
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        window = primaryStage;
-        window.setTitle("Beginner's Chess");
+        primaryStage.setTitle("ChessFX");
 
-        lightSquare = new Image(getClass().getResource("/images/LightSquare.jpg").toString());
-        darkSquare = new Image(getClass().getResource("/images/DarkSquare.jpg").toString());
         lightPiece = new Image(getClass().getResource("/images/LightPiece.jpg").toString());
         darkPiece = new Image(getClass().getResource("/images/DarkPiece.jpg").toString());
-        lightStar = new Image(getClass().getResource("/images/lightstar.jpg").toString());
-        darkStar = new Image(getClass().getResource("/images/darkstar.jpg").toString());
-        lightStarBack =  new Background(new BackgroundImage(new Image(getClass().getResource("/images/lightstar.jpg").toString()),null,null,null,null));
-        darkStarBack =  new Background(new BackgroundImage(new Image(getClass().getResource("/images/darkstar.jpg").toString()),null,null,null,null));
-
         star = new Image(getClass().getResource("/images/ray.png").toString());
         lightS = new Image(getClass().getResource("/images/LightSquare.jpg").toString());
         darkS = new Image(getClass().getResource("/images/DarkSquare.jpg").toString());
-
 
         buildCamera();
         buildAxes();
@@ -120,23 +97,17 @@ public class MainView extends Application {
         root3D.setAutoSizeChildren(true);
         root3D.prefHeight(SCENE_HEIGHT*0.5);
         root3D.prefWidth(SCENE_WIDTH*0.5);
-        subScene = new SubScene(root3D, SCENE_WIDTH*0.8, SCENE_HEIGHT*0.8, true,SceneAntialiasing.BALANCED);
+        subScene = new SubScene(root3D, SCENE_WIDTH*0.9, SCENE_HEIGHT*0.9, true,SceneAntialiasing.BALANCED);
         subScene.setCamera(camera);
 
-        // testing menu
         BorderPane pane = new BorderPane();
         InputStream is = Files.newInputStream(Paths.get("res/images/chessSplash.jpg"));
         Image img = new Image(is);
         is.close();
 
-        HBox whoTurn = new HBox(50);
-        whoTurn.getChildren().add(whoseTurnText);
-        HBox totalRound = new HBox(50);
-        totalRound.getChildren().add(totalRoundText);
-        HBox topPane = new HBox();
-        topPane.getChildren().addAll(whoTurn,totalRound);
-
+        pane.setTop(createInfoBoard());
         Region region1 = new Region();
+
         HBox.setHgrow(region1, Priority.ALWAYS);
 
         HBox bottomPane = new HBox();
@@ -144,22 +115,20 @@ public class MainView extends Application {
         pane.setBottom(bottomPane);
 
         pane.setBackground(new Background(new BackgroundImage(img,
-                        BackgroundRepeat.NO_REPEAT,
-                        BackgroundRepeat.NO_REPEAT,
-                        BackgroundPosition.DEFAULT,
-                        new BackgroundSize(0, 0, false, false, false, true))));
+                BackgroundRepeat.NO_REPEAT,
+                BackgroundRepeat.NO_REPEAT,
+                BackgroundPosition.DEFAULT,
+                new BackgroundSize(0, 0, false, false, false, true))));
         gameMenu = new GameMenu();
 
         centerGroup.getChildren().addAll(subScene,gameMenu);
         pane.setCenter(centerGroup);
         subScene.setVisible(false);
-
         Scene scene = new Scene(pane,SCENE_WIDTH, SCENE_HEIGHT);
 
         scene.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
                 if (!gameMenu.isVisible()) {
-                    System.out.println("Pressed escape and gameMenu is not visible");
                     FadeTransition ft = new FadeTransition(Duration.seconds(0.5), gameMenu);
                     ft.setFromValue(0);
                     ft.setToValue(1);
@@ -167,7 +136,6 @@ public class MainView extends Application {
                     ft.play();
                 }
                 else {
-                    System.out.println("Pressed escape and gameMenu is visible");
                     FadeTransition ft = new FadeTransition(Duration.seconds(0.5), gameMenu);
                     ft.setFromValue(1);
                     ft.setToValue(0);
@@ -192,15 +160,13 @@ public class MainView extends Application {
 
         gameMenu.setVisible(true);
 
-//        controller = new Controller();
-//        drawBoard(controller.clickHandler(new model.Pos(4,4)));
-
-        window.setScene(scene);
-        window.show();
+        primaryStage.setScene(scene);
+        primaryStage.show();
     }
 
     private void newGame(){
 
+        resetPieces();
         controller = new Controller();
         drawBoard(controller.clickHandler(new model.Pos(4,4)));
         subScene.setVisible(true);
@@ -246,6 +212,26 @@ public class MainView extends Application {
         return hBox;
     }
 
+    private HBox createInfoBoard() {
+        HBox whoTurn = new HBox(50);
+        whoTurn.getStyleClass().add("left-pill");
+        whoTurn.setOpacity(0.6);
+        whoTurn.getChildren().add(whoseTurnText);
+
+        HBox totalRound = new HBox(50);
+        totalRound.getStyleClass().add("left-pill");
+        totalRound.getChildren().add(totalRoundText);
+
+        final String pillButtonCss =
+                getClass().getResource("/css/PillButton.css").toExternalForm();
+        final HBox hBox = new HBox();
+        hBox.setAlignment(Pos.CENTER);
+        hBox.getChildren().addAll(whoTurn, totalRound);
+        hBox.getStylesheets().add(pillButtonCss);
+
+        return hBox;
+    }
+
     private HBox create3DPills() {
         ToggleButton tb1 = new ToggleButton("2-D");
         tb1.setPrefSize(76, 30);
@@ -285,7 +271,7 @@ public class MainView extends Application {
     }
 
     private class GameMenu extends Group {
-        public GameMenu() {
+        GameMenu() {
             VBox menu0 = new VBox(10);
             VBox menu1 = new VBox(10);
             VBox menu2 = new VBox(10);
@@ -332,9 +318,7 @@ public class MainView extends Application {
             });
 
             btnExit = new MenuButton("EXIT");
-            btnExit.setOnMouseClicked(event -> {
-                System.exit(0);
-            });
+            btnExit.setOnMouseClicked(event -> System.exit(0));
 
             btnBack = new MenuButton("BACK");
             btnBack.setOnMouseClicked(event -> {
@@ -369,9 +353,9 @@ public class MainView extends Application {
     private static class MenuButton extends StackPane {
         private Text text;
 
-        public MenuButton(String name) {
+        MenuButton(String name) {
             text = new Text(name);
-            text.setFont(text.getFont().font(20));
+            text.setFont(Font.font(20));
             text.setFill(Color.WHITE);
 
             Rectangle bg = new Rectangle(250, 30);
@@ -401,47 +385,45 @@ public class MainView extends Application {
         }
     }
 
+    /** Makes the "star" squares invisible for each square. */
     private void clearBoard() {
         boolean whiteSquare = true;
         for(int i = 0; i < 8; i++){
             for(int j = 0; j< 8; j++){
-
-                    squareBoxes[i][j].setColor(whiteSquare);
-
-                    squares[i][j].getChildren().get(1).setVisible(false);
-
+                squareBoxes[i][j].getChildren().get(1).setVisible(false);
+                squares[i][j].getChildren().get(1).setVisible(false);
+                squares[i][j].getChildren().get(2).setVisible(false);
                 if(j != 7){
                     whiteSquare = (!whiteSquare);
                 }
             }
         }
-        resetPieces();
     }
 
     private void drawBoard(ViewState viewState){
         clearBoard();
-        final PhongMaterial newLightMaterial = new PhongMaterial();
-        newLightMaterial.setDiffuseMap(lightStar);
-        final PhongMaterial newDarkMaterial = new PhongMaterial();
-        newDarkMaterial.setDiffuseMap(darkStar);
         for (model.Pos pos: viewState.getPossibleMoves()) {
-
-                if(squareBoxes[pos.getRow()][pos.getCol()].getColor()){
-                    squareBoxes[pos.getRow()][pos.getCol()].setMaterial(newLightMaterial);;
-                }else {
-                    squareBoxes[pos.getRow()][pos.getCol()].setMaterial(newDarkMaterial);
-                }
-
-
-                squares[pos.getRow()][pos.getCol()].getChildren().get(1).setVisible(true);
-
+            squareBoxes[pos.getRow()][pos.getCol()].getChildren().get(1).setVisible(true);
+            squares[pos.getRow()][pos.getCol()].getChildren().get(1).setVisible(true);
+        }
+        if(viewState.getCurrentMove()!=null){
+            int fromRow = viewState.getCurrentMove().getFrom().getRow();
+            int fromCol = viewState.getCurrentMove().getFrom().getCol();
+            int toRow = viewState.getCurrentMove().getTo().getRow();
+            int toCol = viewState.getCurrentMove().getTo().getCol();
+            int fP = helper[fromRow][fromCol];
+            if (helper[toRow][toCol]!=null){
+                int tP = helper[toRow][toCol];
+                pieceGroup.getChildren().get(tP).setVisible(false);
+            }
+            pieceGroup.getChildren().get(fP).setTranslateX(pieceGroup.getChildren().get(fP).getTranslateX()+(toRow-fromRow)*SQUARE_SIDE);
+            pieceGroup.getChildren().get(fP).setTranslateY(pieceGroup.getChildren().get(fP).getTranslateY()+(toCol-fromCol)*SQUARE_SIDE);
+            helper[fromRow][fromCol]=null;
+            helper[toRow][toCol]=fP;
         }
         for(ViewPiece viewPiece: viewState.getPieces()){
-
-                movePiece(viewPiece.getId(),viewPiece.getPos());
-                squares[viewPiece.getPos().getRow()][viewPiece.getPos().getCol()].drawPiece(viewPiece.getId());
+            squares[viewPiece.getPos().getRow()][viewPiece.getPos().getCol()].drawPiece(viewPiece.getId());
         }
-        clearRemaining();
         if ("WB".contains(viewState.getWhoseTurn())) {
             whoseTurnText.setText("Whose Turn: "+viewState.getWhoseTurn());
         } else {
@@ -450,39 +432,22 @@ public class MainView extends Application {
         totalRoundText.setText("Total round: "+ viewState.getTotalRound());
     }
 
-    private void movePiece(String id, model.Pos pos) {
-        for (Node n : pieceGroup.getChildren()){
-            if(n.getClass() == MeshView.class){
-                if ((id.equals(n.getId().substring(0, 1))) && (!n.getId().contains("set")) && (!n.getId().contains("killed"))) {
-                    n.relocate(0.0,0.0);
-                    n.setTranslateX(-n.getBoundsInLocal().getWidth()/2.0);
-                    n.setTranslateY(-n.getBoundsInLocal().getHeight()/2.0);
-                    n.setTranslateX(n.getTranslateX()+(-3.5 + pos.getRow())*SQUARE_SIDE);
-                    n.setTranslateY(n.getTranslateY()+(-3.5+ pos.getCol())*SQUARE_SIDE);
-                    n.setId(n.getId() + "_set");
-                    break;
-                }
-            }
-        }
-    }
-
+    /** Resets the 3D pieces when a new game begins. */
     private void resetPieces(){
+        helper = new Integer[8][8];
         for (Node n : pieceGroup.getChildren()){
-            n.setId(n.getId().replace("_set",""));
-            n.setId(n.getId().replace("_killed",""));
-        }
-    }
-
-    private void clearRemaining(){
-        for (Node n : pieceGroup.getChildren()){
-            if ((!n.getId().contains("set")) && (!n.getId().contains("killed"))){
-                n.setId(n.getId() + "_killed");
-                n.relocate(0.0,0.0);
-                n.setTranslateX(-n.getBoundsInLocal().getWidth()/2.0);
-                n.setTranslateY(-n.getBoundsInLocal().getHeight()/2.0);
-                n.setTranslateX(n.getTranslateX()+(-4.5 )*SQUARE_SIDE);
-                n.setTranslateY(n.getTranslateY()+(-3.5)*SQUARE_SIDE);
-            }
+            n.relocate(0.0,0.0);
+            n.setTranslateX(-n.getBoundsInLocal().getWidth()/2.0);
+            n.setTranslateY(-n.getBoundsInLocal().getHeight()/2.0);
+            n.setTranslateZ(-n.getBoundsInLocal().getDepth()/2.0-n.getBoundsInLocal().getMinZ());
+            n.setTranslateZ(n.getTranslateZ()+n.getBoundsInParent().getMaxZ());
+            n.setMouseTransparent(true);
+            int row = Character.getNumericValue(n.getId().charAt(1));
+            int col = Character.getNumericValue(n.getId().charAt(2));
+            n.setTranslateX(n.getTranslateX()+(-3.5 + row)*SQUARE_SIDE);
+            n.setTranslateY(n.getTranslateY()+(-3.5+ col)*SQUARE_SIDE);
+            helper[row][col]=pieceGroup.getChildren().indexOf(n);
+            n.setVisible(true);
         }
     }
 
@@ -499,8 +464,8 @@ public class MainView extends Application {
         cameraXform.rx.setAngle(CAMERA_INITIAL_X_ANGLE);
     }
 
+    /** Build the 3-axis for the 3-D scene */
     private void buildAxes() {
-
         final Box xAxis = new Box(AXIS_LENGTH, 1, 1);
         final Box yAxis = new Box(1, AXIS_LENGTH, 1);
         final Box zAxis = new Box(1, 1, AXIS_LENGTH);
@@ -531,9 +496,9 @@ public class MainView extends Application {
 
     private void buildChessPieces() {
         FXMLLoader fxmlLoader = new FXMLLoader();
-        fxmlLoader.setLocation(getClass().getResource("/fxml/ChessObjects.fxml"));
+        fxmlLoader.setLocation(getClass().getResource("/fxml/Chess-1.fxml"));
         try {
-            pieceGroup = fxmlLoader.<Group>load();
+            pieceGroup = fxmlLoader.load();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -546,6 +511,7 @@ public class MainView extends Application {
         double piecesX = pieceGroup.getLayoutBounds().getWidth();
         double piecesY = pieceGroup.getLayoutBounds().getDepth();
         double pieceScale = (8.0*SQUARE_SIDE - 0.2*SQUARE_SIDE) / Math.max(piecesX, piecesY);
+        int counter = 0;
         for (Node n : pieceGroup.getChildren()) {
             if (isUpperCase(n.getId().charAt(0))) {
                 if (n.getClass() == MeshView.class) {
@@ -571,6 +537,12 @@ public class MainView extends Application {
             n.setScaleZ(pieceScale);
             n.setTranslateZ(n.getTranslateZ()+n.getBoundsInParent().getMaxZ());
             n.setMouseTransparent(true);
+            int row = Character.getNumericValue(n.getId().charAt(1));
+            int col = Character.getNumericValue(n.getId().charAt(2));
+            n.setTranslateX(n.getTranslateX()+(-3.5 + row)*SQUARE_SIDE);
+            n.setTranslateY(n.getTranslateY()+(-3.5+ col)*SQUARE_SIDE);
+            helper[row][col]=counter;
+            counter=counter+1;
         }
         world.getChildren().add(pieceGroup);
     }
@@ -592,18 +564,23 @@ public class MainView extends Application {
         }
     }
 
-    private class SquareBox extends Box {
-
+    private class SquareBox extends Group {
         private int row, col;
-        private boolean isWhite;
+        private Box myColor = new Box(SQUARE_SIDE,SQUARE_SIDE,5);
         final PhongMaterial squareMaterial = new PhongMaterial();
 
         private SquareBox(){
-            setWidth(SQUARE_SIDE);
-            setHeight(SQUARE_SIDE);
-            setDepth(1.0);
-            setTranslateZ(-1.0);
+            ImageView starView = new ImageView(star);
+            starView.setFitHeight(SQUARE_SIDE*0.8);
+            starView.setFitWidth(SQUARE_SIDE*0.8);
+            starView.setTranslateX(-(SQUARE_SIDE*0.75)/2);
+            starView.setTranslateY(-(SQUARE_SIDE*0.8)/2);
+            starView.setTranslateZ(0.5);
+
+            myColor.setTranslateZ(-2.5);
             setOnMouseClicked(e -> handleMouseClick());
+            getChildren().addAll(myColor,starView);
+            starView.setVisible(false);
         }
 
         void setRowCol(int row, int col){
@@ -611,16 +588,13 @@ public class MainView extends Application {
             this.col = col;
         }
 
-        boolean getColor(){ return isWhite; }
-
         void setColor(boolean bool){
-            isWhite = bool;
             if(bool){
-                squareMaterial.setDiffuseMap(lightSquare);
+                squareMaterial.setDiffuseMap(lightS);
             }else{
-                squareMaterial.setDiffuseMap(darkSquare);
+                squareMaterial.setDiffuseMap(darkS);
             }
-            setMaterial(squareMaterial);
+            myColor.setMaterial(squareMaterial);
         }
 
         void handleMouseClick(){
@@ -633,7 +607,6 @@ public class MainView extends Application {
         private ImageView localPiece = new ImageView();
         private ImageView myColor = new ImageView();
 
-        //		private Piece piece;
         private Square(){
             setPrefSize(60, 60);
             setStyle("-fx-border-color: black");
@@ -653,14 +626,6 @@ public class MainView extends Application {
             this.row = row;
             this.col = col;
         }
-//        public int getRow(){
-//            return row;
-//        }
-//        public int getCol(){
-//            return col;
-//        }
-//
-//        public boolean getColor(){ return isWhite; }
 
         void setColor(boolean bool){
             if(bool){
@@ -670,12 +635,10 @@ public class MainView extends Application {
             }
         }
         private void handleMouseClick(){
-            //use row, col and piece;
             drawBoard(controller.clickHandler(new model.Pos(row, col)));
-            //draw chessBoardPane
         }
         void drawPiece(String id){
-            String fileName = "";
+            String fileName;
             if("KQNBPR".contains(id)) {
                 fileName = "res/images/w" + id.toLowerCase() + ".png";
             }else{
@@ -691,9 +654,6 @@ public class MainView extends Application {
             }
             this.setAlignment(javafx.geometry.Pos.CENTER);
         }
-//        void resetText(String id){
-//            localPiece.setVisible(false);
-//        }
     }
 
     private void setMaterial(Group group, Material material) {
