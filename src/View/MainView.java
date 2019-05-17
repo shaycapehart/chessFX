@@ -8,6 +8,7 @@ import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Bounds;
 import javafx.geometry.Point3D;
 import javafx.geometry.Pos;
 import javafx.scene.*;
@@ -400,6 +401,35 @@ public class MainView extends Application {
         }
     }
 
+    private void movePieceAnimation(Node square, Node piece) {
+        Bounds pb = piece.getBoundsInParent();
+        Bounds sb = square.getBoundsInParent();
+        double x = (sb.getMinX() - pb.getMinX() + (sb.getWidth() - pb.getWidth()) / 2);
+        double y = (sb.getMinY() - pb.getMinY() + (sb.getWidth() - pb.getWidth()) / 2);
+        Duration duration = Duration.millis(500);
+        TranslateTransition t1 = new TranslateTransition(duration, piece);
+        t1.setByZ(30);
+        t1.setCycleCount(1);
+        TranslateTransition t = new TranslateTransition(duration, piece);
+        t.setByX(x);
+        t.setByY(y);
+        t.setCycleCount(1);
+        TranslateTransition t2 = new TranslateTransition(duration, piece);
+        t2.setByZ(-30);
+        t2.setCycleCount(1);
+        SequentialTransition s = new SequentialTransition(t1, t, t2);
+        s.play();
+    }
+
+    private void removePieceAnimation(Node piece) {
+        Bounds pb = piece.getBoundsInParent();
+        Duration duration = Duration.millis(500);
+        TranslateTransition transition = new TranslateTransition(duration, piece);
+        transition.setByZ(-pb.getDepth());
+        transition.setCycleCount(1);
+        transition.play();
+    }
+
     private void drawBoard(ViewState viewState){
         clearBoard();
         for (model.Pos pos: viewState.getPossibleMoves()) {
@@ -414,10 +444,12 @@ public class MainView extends Application {
             int fP = helper[fromRow][fromCol];
             if (helper[toRow][toCol]!=null){
                 int tP = helper[toRow][toCol];
-                pieceGroup.getChildren().get(tP).setVisible(false);
+                removePieceAnimation(pieceGroup.getChildren().get(tP));
+//                pieceGroup.getChildren().get(tP).setVisible(false);
             }
-            pieceGroup.getChildren().get(fP).setTranslateX(pieceGroup.getChildren().get(fP).getTranslateX()+(toRow-fromRow)*SQUARE_SIDE);
-            pieceGroup.getChildren().get(fP).setTranslateY(pieceGroup.getChildren().get(fP).getTranslateY()+(toCol-fromCol)*SQUARE_SIDE);
+            movePieceAnimation(squareBoxes[toRow][toCol],pieceGroup.getChildren().get(fP));
+//            pieceGroup.getChildren().get(fP).setTranslateX(pieceGroup.getChildren().get(fP).getTranslateX()+(toRow-fromRow)*SQUARE_SIDE);
+//            pieceGroup.getChildren().get(fP).setTranslateY(pieceGroup.getChildren().get(fP).getTranslateY()+(toCol-fromCol)*SQUARE_SIDE);
             helper[fromRow][fromCol]=null;
             helper[toRow][toCol]=fP;
         }
@@ -571,10 +603,10 @@ public class MainView extends Application {
 
         private SquareBox(){
             ImageView starView = new ImageView(star);
-            starView.setFitHeight(SQUARE_SIDE*0.8);
-            starView.setFitWidth(SQUARE_SIDE*0.8);
-            starView.setTranslateX(-(SQUARE_SIDE*0.75)/2);
-            starView.setTranslateY(-(SQUARE_SIDE*0.8)/2);
+            starView.setFitHeight(SQUARE_SIDE*0.85);
+            starView.setFitWidth(SQUARE_SIDE*0.85);
+            starView.setTranslateX(-(SQUARE_SIDE*0.8)/2);
+            starView.setTranslateY(-(SQUARE_SIDE*0.85)/2);
             starView.setTranslateZ(0.5);
 
             myColor.setTranslateZ(-2.5);
