@@ -58,8 +58,8 @@ public class MainView extends Application {
     private final Xform cameraXform2 = new Xform();
     private final Xform cameraXform3 = new Xform();
 
-    private static final double SCENE_WIDTH = 800;
-    private static final double SCENE_HEIGHT = 600;
+    private static final double SCENE_WIDTH = 1080;
+    private static final double SCENE_HEIGHT = 720;
     private static final double CAMERA_INITIAL_DISTANCE = -500;
     private static final double CAMERA_INITIAL_X_ANGLE = 45.0;
     private static final double CAMERA_INITIAL_Y_ANGLE = 0.0;
@@ -98,13 +98,13 @@ public class MainView extends Application {
         root3D.setAutoSizeChildren(true);
         root3D.prefHeight(SCENE_HEIGHT*0.5);
         root3D.prefWidth(SCENE_WIDTH*0.5);
-        subScene = new SubScene(root3D, SCENE_WIDTH*0.9, SCENE_HEIGHT*0.9, true,SceneAntialiasing.BALANCED);
+        subScene = new SubScene(root3D, SCENE_WIDTH*0.8, SCENE_HEIGHT*0.8, true,SceneAntialiasing.BALANCED);
         subScene.setCamera(camera);
 
         BorderPane pane = new BorderPane();
-        InputStream is = Files.newInputStream(Paths.get("res/images/chessSplash.jpg"));
-        Image img = new Image(is);
-        is.close();
+
+        Image img = new Image(getClass().getResource("/images/chessSplash.jpg").toString());
+
 
         pane.setTop(createInfoBoard());
         Region region1 = new Region();
@@ -672,13 +672,12 @@ public class MainView extends Application {
         void drawPiece(String id){
             String fileName;
             if("KQNBPR".contains(id)) {
-                fileName = "res/images/w" + id.toLowerCase() + ".png";
+                fileName = "/images/w" + id.toLowerCase() + ".png";
             }else{
-                fileName = "res/images/" + id.toLowerCase() + ".png";
+                fileName = "/images/" + id.toLowerCase() + ".png";
             }
             try {
-                FileInputStream input = new FileInputStream(fileName);
-                Image img = new Image(input);
+                Image img = new Image(getClass().getResource(fileName).toString());
                 localPiece.setImage(img);
                 localPiece.setVisible(true);
             } catch(Exception e) {
